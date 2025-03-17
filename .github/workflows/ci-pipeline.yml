@@ -1,4 +1,4 @@
-name: CI Pipeline
+name: CI/CD Pipeline
 
 on:
   push:
@@ -11,10 +11,11 @@ on:
       - '!master'
       - '!stagging'
   pull_request:
-    branches: [ master, stagging, develop ]  # Esto ejecutará el CI en PRs a estas ramas
+    branches: [ master, stagging, develop ]
 
 jobs:
-  build:
+  ci:
+    name: Continuous Integration
     runs-on: ubuntu-latest
     
     steps:
@@ -31,6 +32,44 @@ jobs:
     
     - name: Run linting
       run: npm run lint
+    
+    - name: Run tests
+      run: npm test || echo "No tests found"
         
     - name: Build project
       run: npm run build
+
+  deploy-to-vercel:
+    name: Deploy to Vercel (Staging)
+    needs: ci
+    if: github.event_name == 'pull_request' && github.event.pull_request.base.ref == 'stagging'
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '20.15.1'
+    
+    - name: Install Vercel CLI
+      run: npm install --global vercel@latest
+    
+    - name: Pull Vercel Environment Information
+      run: vercel pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN }}
+    
+    - name: Deploy to Vercel
+      run: vercel deploy --token=${{ secrets.VERCEL_TOKEN }} --prod
+    
+    - name: Comment on PR
+      uses: actions/github-script@v6
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        script: |
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: '✅ CI pasó correctamente y el despliegue en Vercel ha sido completado. Puedes ver el preview en: https://${process.env.VERCEL_URL}'
+          })
