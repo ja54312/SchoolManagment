@@ -13,6 +13,12 @@ on:
   pull_request:
     branches: [ master, stagging, develop ]
 
+# Configurar permisos para GITHUB_TOKEN
+permissions:
+  contents: read
+  pull-requests: write  # Necesario para comentar en PRs
+  deployments: write    # Necesario para despliegues
+
 jobs:
   ci:
     name: Continuous Integration
@@ -75,6 +81,4 @@ jobs:
         vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
         github-token: ${{ secrets.GITHUB_TOKEN }}
         vercel-args: '--prod'
-        alias-domasters: |
-          production-schoolmanagment.vercel.app
         github-comment: true
