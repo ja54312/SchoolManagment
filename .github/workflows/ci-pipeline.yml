@@ -1,4 +1,4 @@
-name: CI/CD Pipeline
+name: CI/CD Pipeline (Production)
 
 on:
   push:
@@ -39,33 +39,42 @@ jobs:
     - name: Build project
       run: npm run build
 
-  deploy-to-vercel:
+  deploy-to-vercel-staging:
     name: Deploy to Vercel (Staging)
     needs: ci
     if: github.event_name == 'pull_request' && github.event.pull_request.base.ref == 'stagging'
     runs-on: ubuntu-latest
     
     steps:
-        - uses: actions/checkout@v3
-        
-        - name: Debug secrets availability
-          run: |
-            echo "VERCEL_TOKEN está configurado: ${{ secrets.VERCEL_TOKEN != '' }}"
-            echo "VERCEL_ORG_ID está configurado: ${{ secrets.VERCEL_ORG_ID != '' }}"
-            echo "VERCEL_PROJECT_ID está configurado: ${{ secrets.VERCEL_PROJECT_ID != '' }}"
-        
-        - name: Deploy to Vercel
-          env:
-            VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-            VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-            VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-          run: |
-            # Instalar Vercel CLI
-            npm install -g vercel
-            
-            # Crear archivo de configuración
-            mkdir -p .vercel
-            echo "{\"orgId\":\"$VERCEL_ORG_ID\",\"projectId\":\"$VERCEL_PROJECT_ID\"}" > .vercel/project.json
-            
-            # Desplegar a Vercel
-            vercel --prod --token=$VERCEL_TOKEN --yes
+    - uses: actions/checkout@v3
+      
+    - name: Deploy to Vercel (Preview)
+      uses: amondnet/vercel-action@v25
+      with:
+        vercel-token: ${{ secrets.VERCEL_TOKEN }}
+        vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+        vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        vercel-args: '--prod'
+        github-comment: true
+
+  deploy-to-vercel-production:
+    name: Deploy to Vercel (Production)
+    needs: ci
+    if: github.event_name == 'pull_request' && github.event.pull_request.base.ref == 'master'
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+      
+    - name: Deploy to Vercel (Production)
+      uses: amondnet/vercel-action@v25
+      with:
+        vercel-token: ${{ secrets.VERCEL_TOKEN }}
+        vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+        vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        vercel-args: '--prod'
+        alias-domasters: |
+          production-schoolmanagment.vercel.app
+        github-comment: true
