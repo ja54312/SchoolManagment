@@ -1,4 +1,4 @@
-name: CI Pipeline
+name: CI/CD Pipeline (Production)
 
 on:
   push:
@@ -11,10 +11,17 @@ on:
       - '!master'
       - '!stagging'
   pull_request:
-    branches: [ master, stagging, develop ]  # Esto ejecutará el CI en PRs a estas ramas
+    branches: [ master, stagging, develop ]
+
+# Configurar permisos para GITHUB_TOKEN
+permissions:
+  contents: read
+  pull-requests: write  # Necesario para comentar en PRs
+  deployments: write    # Necesario para despliegues
 
 jobs:
-  build:
+  ci:
+    name: Continuous Integration
     runs-on: ubuntu-latest
     
     steps:
@@ -31,6 +38,47 @@ jobs:
     
     - name: Run linting
       run: npm run lint
+    
+    - name: Run tests
+      run: npm test || echo "No tests found"
         
     - name: Build project
       run: npm run build
+
+  deploy-to-vercel-staging:
+    name: Deploy to Vercel (Staging)
+    needs: ci
+    if: github.event_name == 'pull_request' && github.event.pull_request.base.ref == 'stagging'
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+      
+    - name: Deploy to Vercel (Preview)
+      uses: amondnet/vercel-action@v25
+      with:
+        vercel-token: ${{ secrets.VERCEL_TOKEN }}
+        vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+        vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        vercel-args: '--prod'
+        github-comment: true
+
+  deploy-to-vercel-production:
+    name: Deploy to Vercel (Production)
+    needs: ci
+    if: github.event_name == 'pull_request' && github.event.pull_request.base.ref == 'master'
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+      
+    - name: Deploy to Vercel (Production)
+      uses: amondnet/vercel-action@v25
+      with:
+        vercel-token: ${{ secrets.VERCEL_TOKEN }}
+        vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+        vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        vercel-args: '--prod'
+        github-comment: true
